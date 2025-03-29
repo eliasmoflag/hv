@@ -598,5 +598,14 @@ void remove_all_mmrs(vcpu* const cpu) {
   skip_instruction();
 }
 
+void set_log_levels(vcpu* cpu) {
+  auto& l = ghv.logger;
+  l.lock.acquire();
+  l.logs_enabled = cpu->ctx->ecx;
+  l.lock.release();
+
+  skip_instruction();
+}
+
 } // namespace hv::hc
 

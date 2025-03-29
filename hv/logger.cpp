@@ -12,11 +12,12 @@ void logger_init() {
   memcpy(l.signature, "hvloggerhvlogger", 16);
 
   l.lock.initialize();
+  l.logs_enabled = log_level_info | log_level_error;
   l.msg_start = 0;
   l.msg_count = 0;
   l.total_msg_count = 0;
 
-  logger_write("Logger initialized.");
+  logger_write(log_level_info, "Logger initialized.");
 }
 
 // flush log messages to the provided buffer
@@ -191,7 +192,8 @@ static void logger_format(char* const buffer, char const* const format, va_list&
 // write a printf-style string to the logger using
 // a limited subset of printf specifiers:
 //   %s, %i, %d, %u, %x, %X, %p
-void logger_write(char const* const format, ...) {
+void logger_write(log_level level, char const* const format, ...) {
+
   char str[logger_msg::max_msg_length];
 
   // format the string
@@ -203,6 +205,9 @@ void logger_write(char const* const format, ...) {
   auto& l = ghv.logger;
 
   scoped_spin_lock lock(l.lock);
+
+  if (!(l.logs_enabled & level))
+    return;
 
   auto& msg = l.msgs[(l.msg_start + l.msg_count) % l.max_msg_count];
   
@@ -221,6 +226,7 @@ void logger_write(char const* const format, ...) {
   // set the metadata info about this message
   msg.id  = l.total_msg_count;
   msg.tsc = __rdtscp(&msg.aux);
+  msg.level = level;
 }
 
 } // namespace hv

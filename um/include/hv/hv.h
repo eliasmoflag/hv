@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
 #include <Windows.h>
 
 namespace hv {
@@ -10,6 +11,13 @@ inline constexpr uint64_t hypercall_key = 69420;
 
 // signature that is returned by the ping hypercall
 inline constexpr uint64_t hypervisor_signature = 'fr0g';
+
+enum log_level : int {
+    log_level_none    = 0,
+    log_level_info    = 1 << 0,
+    log_level_error   = 1 << 1,
+    log_level_verbose = 1 << 2
+};
 
 struct logger_msg {
   static constexpr uint32_t max_msg_length = 128;
@@ -22,6 +30,8 @@ struct logger_msg {
 
   // process ID of the VCPU that sent the message
   uint32_t aux;
+
+  log_level level;
 
   // null-terminated ascii string
   char data[max_msg_length];
@@ -46,7 +56,8 @@ enum hypercall_code : uint64_t {
   hypercall_get_hv_base,
   hypercall_install_mmr,
   hypercall_remove_mmr,
-  hypercall_remove_all_mmrs
+  hypercall_remove_all_mmrs,
+  hypercall_set_log_levels
 };
 
 // hypercall input
@@ -126,6 +137,8 @@ void remove_mmr(void* handle);
 
 // remove every installed MMR
 void remove_all_mmrs();
+
+void set_log_levels(std::underlying_type_t<log_level> levels);
 
 // VMCALL instruction, defined in hv.asm
 uint64_t vmx_vmcall(hypercall_input& input);
@@ -332,6 +345,14 @@ inline void remove_all_mmrs() {
   hv::hypercall_input input;
   input.code = hv::hypercall_remove_all_mmrs;
   input.key  = hv::hypercall_key;
+  hv::vmx_vmcall(input);
+}
+
+inline void set_log_levels(std::underlying_type_t<log_level> levels) {
+  hv::hypercall_input input;
+  input.code = hv::hypercall_set_log_levels;
+  input.key  = hv::hypercall_key;
+  input.args[0] = levels;
   hv::vmx_vmcall(input);
 }
 
